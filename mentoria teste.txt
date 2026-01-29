@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MENTORIA ELITE | RAIO-X DE PERFORMANCE</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #020617; --gold: #fbbf24; --accent: #a855f7;
+            --card-bg: #1e293b; --text: #f8fafc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: var(--primary); color: var(--text); padding: 20px; }
+
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid var(--gold); padding-bottom: 15px; }
+        .logo { font-size: 1.5rem; font-weight: 900; color: var(--gold); }
+        .btn-voltar { padding: 10px 20px; background: var(--card-bg); border: 1px solid var(--gold); color: var(--gold); border-radius: 8px; cursor: pointer; text-decoration: none; font-weight: bold; }
+
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+
+        /* CARDS DE STATUS */
+        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid #334155; position: relative; overflow: hidden; }
+        .card h2 { font-size: 1rem; color: var(--gold); margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .card::after { content: ''; position: absolute; top: 0; right: 0; width: 4px; height: 100%; background: var(--gold); }
+
+        /* LISTAS */
+        .postit-list { list-style: none; }
+        .postit-item { background: #fef3c7; color: #92400e; padding: 12px; border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; font-weight: 600; border-left: 5px solid #d97706; }
+       
+        .progresso-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #334155; font-size: 0.85rem; }
+        .status-badge { padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+        .status-completo { background: #16a34a; color: white; }
+        .status-pendente { background: #dc2626; color: white; }
+
+        /* ÁREA DE INSIGHTS AI */
+        .ai-box { background: linear-gradient(135deg, #1e293b, #4c1d95); border: 2px solid var(--accent); }
+        .ai-box h2 { color: #d8b4fe; }
+
+        .stat-big { font-size: 2.5rem; font-weight: 900; color: white; margin: 10px 0; }
+       
+        @media (max-width: 600px) { .dashboard { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo"><i class="fas fa-brain"></i> MENTORIA ELITE</div>
+    <a href="peca.html" class="btn-voltar"><i class="fas fa-chevron-left"></i> VOLTAR AOS TREINOS</a>
+</header>
+
+<div class="dashboard">
+    <div class="card ai-box">
+        <h2><i class="fas fa-chart-line"></i> RAIO-X DE PERFORMANCE</h2>
+        <div class="stat-big" id="total-pecas">0</div>
+        <p>Peças produzidas no total até agora.</p>
+        <div style="margin-top:20px; padding:10px; background: rgba(0,0,0,0.3); border-radius: 8px; font-size: 0.8rem;">
+            <strong>Dica do Mentor:</strong> Foque em Contestação nesta semana. É a sua peça com maior incidência nos últimos exames.
+        </div>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-sticky-note"></i> MEUS POST-ITS (DICAS)</h2>
+        <div id="lista-postits" class="postit-list">
+            <p style="color: #94a3b8; font-style: italic;">Nenhuma dica salva ainda.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-tasks"></i> STATUS DOS EXAMES</h2>
+        <div id="progresso-exames">
+            </div>
+    </div>
+
+    <div class="card">
+        <h2><i class="fas fa-gavel"></i> TESES RECORRENTES</h2>
+        <ul style="list-style: none; font-size: 0.9rem;">
+            <li style="margin-bottom:8px;"><i class="fas fa-check-circle" style="color:var(--gold);"></i> Equiparação Salarial (Art. 461 CLT)</li>
+            <li style="margin-bottom:8px;"><i class="fas fa-check-circle" style="color:var(--gold);"></i> Horas Extras (Ônus da Prova)</li>
+            <li style="margin-bottom:8px;"><i class="fas fa-check-circle" style="color:var(--gold);"></i> Danos Morais (Assédio)</li>
+        </ul>
+    </div>
+</div>
+
+<script type="module">
+    import { db } from './firebase-config.js';
+    import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    // 1. Carregar Resumo de Produção
+    onValue(ref(db, 'estudos_completos'), (snapshot) => {
+        const dados = snapshot.val();
+        if (dados) {
+            const examesCompletos = Object.keys(dados);
+            document.getElementById('total-pecas').innerText = examesCompletos.length;
+
+            const progressoDiv = document.getElementById('progresso-exames');
+            progressoDiv.innerHTML = '';
+           
+            examesCompletos.forEach(ex => {
+                progressoDiv.innerHTML += `
+                    <div class="progresso-item">
+                        <span>Exame ${ex}</span>
+                        <span class="status-badge status-completo">PRODUZIDO</span>
+                    </div>
+                `;
+            });
+        }
+    });
+
+    // 2. Carregar Post-its (Dicas)
+    onValue(ref(db, 'dicas_postits'), (snapshot) => {
+        const dicas = snapshot.val();
+        const lista = document.getElementById('lista-postits');
+        if (dicas) {
+            lista.innerHTML = '';
+            Object.values(dicas).forEach(d => {
+                lista.innerHTML += `<div class="postit-item"><i class="fas fa-lightbulb"></i> ${d.texto} <br><small style="opacity:0.7">${d.peca || ''}</small></div>`;
+            });
+        }
+    });
+</script>
+</body>
+</html>
+ 
+
