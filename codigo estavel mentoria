@@ -1,0 +1,143 @@
+<main class="dashboard">
+    <section class="panel" style="border-top: 6px solid #000; grid-column: 1 / -1;">
+        <div class="panel-header" style="background: #000; color: var(--gold);"><i class="fas fa-box"></i> Black Box: Peças no Radar</div>
+        <div class="panel-body">
+            <div id="black-box-feed" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px;">
+                <p style="font-size: 0.7rem; opacity: 0.5;">Aguardando telemetria...</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel" style="border-top: 6px solid var(--success);">
+        <div class="panel-header">Preliminares (Ordem Alfabética/Numérica)</div>
+        <div class="panel-body">
+            <input type="hidden" id="id-pre">
+            <label>Título (ex: 01. Incompetência)</label><input type="text" id="pre-t">
+            <label>Fundamentação</label><textarea id="pre-c"></textarea>
+            <button class="btn-save" style="background: var(--success);" onclick="window.salvar('pre')">Salvar/Atualizar</button>
+            <div class="feed" id="feed-pre"></div>
+        </div>
+    </section>
+
+    <section class="panel" style="border-top: 6px solid var(--purple);">
+        <div class="panel-header">Qual é a Peça?</div>
+        <div class="panel-body">
+            <input type="hidden" id="id-peca">
+            <label>Enunciado</label><textarea id="peca-t"></textarea>
+            <label>Gabarito</label><input type="text" id="peca-c">
+            <button class="btn-save" style="background: var(--purple);" onclick="window.salvar('peca')">Salvar Desafio</button>
+            <div class="feed" id="feed-peca"></div>
+        </div>
+    </section>
+
+    <section class="panel" style="border-top: 6px solid var(--danger);">
+        <div class="panel-header">Radar: Não Confunda</div>
+        <div class="panel-body">
+            <input type="hidden" id="id-nc">
+            <label>Conceito</label><input type="text" id="nc-t">
+            <label>Diferença</label><textarea id="nc-c"></textarea>
+            <button class="btn-save" style="background: var(--danger);" onclick="window.salvar('nc')">Salvar Radar</button>
+            <div class="feed" id="feed-nc"></div>
+        </div>
+    </section>
+
+    <section class="panel" style="border-top: 6px solid var(--primary);">
+        <div class="panel-header">Arquivo de Teses</div>
+        <div class="panel-body">
+            <input type="hidden" id="id-tese">
+            <label>Título</label><input type="text" id="tese-t">
+            <label>Conteúdo</label><textarea id="tese-c"></textarea>
+            <button class="btn-save" style="background: var(--primary);" onclick="window.salvar('tese')">Arquivar Tese</button>
+            <div class="feed" id="feed-tese"></div>
+        </div>
+    </section>
+</main>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, push, set, onValue, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    const config = { 
+        apiKey: "AIzaSyAmigODFK8R9c0-fWtagdxLWu9xkODfKYQ", 
+        authDomain: "masteroab-db5e1.firebaseapp.com", 
+        projectId: "masteroab-db5e1", 
+        databaseURL: "https://masteroab-db5e1-default-rtdb.firebaseio.com" 
+    };
+    
+    const app = initializeApp(config);
+    const db = getDatabase(app);
+    const paths = { pre: 'v13_pre', peca: 'v13_peca', nc: 'v13_nc', tese: 'v13_tese' };
+
+    // FUNÇÕES GLOBAIS
+    window.toggleR = (btn) => { const div = btn.nextElementSibling; div.style.display = (div.style.display === "block" ? "none" : "block"); };
+
+    window.salvar = (type) => {
+        const id = document.getElementById(`id-${type}`).value;
+        const t = document.getElementById(`${type}-t`).value;
+        const c = document.getElementById(`${type}-c`).value;
+        if(!t || !c) return;
+        const data = { t, c, ts: serverTimestamp() };
+        if(id) set(ref(db, `${paths[type]}/${id}`), data);
+        else push(ref(db, paths[type]), data);
+        
+        document.getElementById(`id-${type}`).value = '';
+        document.getElementById(`${type}-t`).value = '';
+        document.getElementById(`${type}-c`).value = '';
+    };
+
+    window.editar = (type, id, t, c) => {
+        document.getElementById(`id-${type}`).value = id;
+        document.getElementById(`${type}-t`).value = t;
+        document.getElementById(`${type}-c`).value = c;
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    };
+
+    window.excluir = (p, id) => { if(confirm("Apagar registro?")) remove(ref(db, `${paths[p]}/${id}`)); };
+
+    // ESCUTA BLACK BOX (ESTUDOS)
+    onValue(ref(db, 'estudos'), (snap) => {
+        const feedBB = document.getElementById('black-box-feed');
+        const voos = snap.val();
+        if(!voos) { feedBB.innerHTML = "<p style='font-size:0.7rem; opacity:0.5;'>Nenhum dado no radar.</p>"; return; }
+        
+        feedBB.innerHTML = "";
+        Object.keys(voos).sort((a,b) => b-a).forEach(exId => {
+            const voo = voos[exId];
+            const dataFmt = voo.ts ? new Date(voo.ts).toLocaleDateString('pt-BR') : "--/--/--";
+            const textoPreview = voo['editor-peca'] ? voo['editor-peca'].substring(0, 60) + "..." : "Sem conteúdo...";
+            
+            const div = document.createElement('div');
+            div.className = 'black-box-item';
+            div.innerHTML = `
+                <div class="bb-meta"><span>EXAME E${exId}</span><span>${dataFmt}</span></div>
+                <div class="bb-content">${textoPreview}</div>
+            `;
+            div.onclick = () => { location.href = 'index.html'; };
+            feedBB.appendChild(div);
+        });
+    });
+
+    // ESCUTA DADOS TÉCNICOS
+    onValue(ref(db), (snap) => {
+        const v = snap.val() || {};
+        const render = (type, target) => {
+            const f = document.getElementById(target); f.innerHTML = "";
+            const obj = v[paths[type]] || {};
+            const itensOrdenados = Object.keys(obj).map(id => ({ id, ...obj[id] }))
+                                         .sort((a, b) => a.t.localeCompare(b.t, undefined, {numeric: true}));
+
+            itensOrdenados.forEach(item => {
+                f.innerHTML += `<div class="card ${type==='pre'?'card-pre':''}">
+                    <div class="btn-edit-tool">
+                        <i class="fas fa-pen" onclick="window.editar('${type}','${item.id}','${item.t.replace(/'/g, "\\'")}','${item.c.replace(/'/g, "\\")}')"></i>
+                        <i class="fas fa-trash" onclick="window.excluir('${type}','${item.id}')"></i>
+                    </div>
+                    ${type==='peca' ? `<p>${item.t}</p><button class="btn-reveal" onclick="window.toggleR(this)">VER GABARITO</button><div class="hidden-content">${item.c}</div>` : `<strong>${item.t}</strong><p>${item.c}</p>`}
+                </div>`;
+            });
+        };
+        ['pre', 'peca', 'nc', 'tese'].forEach(p => render(p, `feed-${p}`));
+    });
+</script>
+</body>
+</html>
